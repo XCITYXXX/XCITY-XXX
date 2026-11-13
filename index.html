@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#111111">
+
+    <title>XCITY - الصفحة الرئيسية</title>
+
+    <link rel="stylesheet" href="css/style.css">
+
+    <style>
+        /* نافذة الحساب */
+
+        .account-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(0,0,0,.8);
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+        }
+
+        .account-overlay.show {
+            display: flex;
+        }
+
+        .account-modal {
+            position: relative;
+            width: 100%;
+            max-width: 420px;
+            background: #1e1e1e;
+            border: 1px solid #383838;
+            border-radius: 14px;
+            padding: 28px;
+            color: white;
+            box-shadow: 0 15px 50px rgba(0,0,0,.5);
+        }
+
+        .account-close {
+            position: absolute;
+            top: 12px;
+            left: 14px;
+            background: transparent;
+            border: 0;
+            color: #aaa;
+            font-size: 25px;
+            cursor: pointer;
+        }
+
+        .account-logo {
+            text-align: center;
+            font-size: 30px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .account-logo span {
+            color: #ff3030;
+        }
+
+        .account-logo strong {
+            color: #aaa;
+        }
+
+        .account-modal h2 {
+            text-align: center;
+            margin: 0 0 20px;
+        }
+
+        .account-form {
+            display: flex;
+            flex-direction: column;
+            gap: 13px;
+        }
+
+        .account-form input {
+            width: 100%;
+            padding: 13px;
+            background: #111;
+            color: white;
+            border: 1px solid #444;
+            border-radius: 7px;
+            font-size: 15px;
+            outline: none;
+        }
+
+        .account-form input:focus {
+            border-color: #ff3030;
+        }
+
+        .account-submit {
+            width: 100%;
+            padding: 13px;
+            background: #ff3030;
+            border: 0;
+            border-radius: 7px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .account-submit:disabled {
+            opacity: .6;
+            cursor: wait;
+        }
+
+        .account-switch {
+            text-align: center;
+            margin-top: 18px;
+            color: #aaa;
+            font-size: 14px;
+        }
+
+        .account-switch button {
+            background: none;
+            border: 0;
+            color: #ff4545;
+            cursor: pointer;
+            font: inherit;
+        }
+
+        .account-message {
+            display: none;
+            padding: 11px;
+            border-radius: 7px;
+            margin-top: 15px;
+            font-size: 14px;
+            line-height: 1.7;
+            overflow-wrap: anywhere;
+        }
+
+        .account-message.success {
+            display: block;
+            background: #164b31;
+            color: #fff;
+        }
+
+        .account-message.error {
+            display: block;
+            background: #642525;
+            color: #fff;
+        }
+
+        .account-user-menu {
+            display: none;
+            position: absolute;
+            top: 65px;
+            left: 15px;
+            z-index: 100;
+            width: 210px;
+            background: #1e1e1e;
+            border: 1px solid #444;
+            border-radius: 9px;
+            padding: 10px;
+        }
+
+        .account-user-menu.show {
+            display: block;
+        }
+
+        .account-user-menu button,
+        .account-user-menu a {
+            display: block;
+            width: 100%;
+            padding: 11px;
+            text-align: right;
+            background: transparent;
+            border: 0;
+            color: white;
+            text-decoration: none;
+            cursor: pointer;
+            font: inherit;
+        }
+
+        .account-user-menu button:hover,
+        .account-user-menu a:hover {
+            background: #333;
+        }
+
+        .account-user-email {
+            padding: 10px;
+            color: #aaa;
+            font-size: 12px;
+            overflow-wrap: anywhere;
+            border-bottom: 1px solid #444;
+        }
+
+        @media (max-width: 480px) {
+            .account-modal {
+                padding: 23px 18px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header class="site-header">
+
+    <div class="header-top">
+
+        <button id="themeToggle" class="header-icon"
+                aria-label="تغيير المظهر">☀</button>
+
+        <a href="index.html" class="logo">
+            <span>X</span><strong>CITY</strong>
+        </a>
+
+        <button id="accountButton" class="header-icon"
+                aria-label="الحساب">♙</button>
+
+        <div id="accountUserMenu" class="account-user-menu">
+
+            <div id="accountUserEmail" class="account-user-email"></div>
+
+            <a href="admin.html" id="adminMenuLink"
+               style="display:none;">لوحة الإدارة</a>
+
+            <button id="logoutAccountButton">تسجيل الخروج</button>
+
+        </div>
+
+    </div>
+
+    <div class="search-container">
+        <input type="search" id="searchInput"
+               placeholder="ابحث عن فيديو..." autocomplete="off">
+        <button id="searchButton" aria-label="بحث">⌕</button>
+    </div>
+
+    <nav class="category-nav" aria-label="التصنيفات">
+
+        <a href="#" data-category="all" class="active">الكل</a>
+        <a href="#" data-category="actors">الممثلين</a>
+        <a href="#" data-category="categories">التصنيفات</a>
+        <a href="#" data-category="albums">الالبومات</a>
+        <a href="#" data-category="latest">احدث الافلام</a>
+        <a href="#" data-category="best">الافضل</a>
+        <a href="#" data-category="popular">الاعلى مشاهدة</a>
+        <a href="#" data-category="family">عائلي</a>
+        <a href="#" data-category="trio">ثلاثي</a>
+        <a href="#" data-category="mothers">امهات</a>
+        <a href="#" data-category="sisters">اخوات</a>
+        <a href="#" data-category="translated">مترجم</a>
+        <a href="#" data-category="arabic">عربي</a>
+
+    </nav>
+
+</header>
+
+<main class="main-content">
+
+    <section class="videos-section">
+
+        <div class="section-heading">
+
+            <div>
+                <h1 id="sectionTitle">أحدث الفيديوهات</h1>
+                <span id="resultsCount">الفيديوهات المضافة حديثاً</span>
+            </div>
+
+            <select id="sortSelect" aria-label="ترتيب الفيديوهات">
+                <option value="latest">الأحدث</option>
+                <option value="popular">الأكثر مشاهدة</option>
+                <option value="best">الأفضل تقييماً</option>
+            </select>
+
+        </div>
+
+        <div id="videosGrid" class="videos-grid"></div>
+
+        <div id="emptyMessage" class="empty-message">
+            لا توجد فيديوهات مطابقة.
+        </div>
+
+    </section>
+
+</main>
+
+<footer class="site-footer">
+
+    <a href="index.html" class="footer-logo">
+        <span>X</span>CITY
+    </a>
+
+    <p>جميع الحقوق محفوظة © XCITY</p>
+
+</footer>
+
+<!-- نافذة الحساب -->
+
+<div id="accountOverlay" class="account-overlay">
+
+    <div class="account-modal">
+
+        <button id="closeAccountModal" class="account-close"
+                aria-label="إغلاق">×</button>
+
+        <div class="account-logo">
+            <span>X</span><strong>CITY</strong>
+        </div>
+
+        <h2 id="accountFormTitle">تسجيل الدخول</h2>
+
+        <form id="accountForm" class="account-form">
+
+            <input
+                type="email"
+                id="accountEmail"
+                placeholder="البريد الإلكتروني"
+                autocomplete="email"
+                required
+            >
+
+            <input
+                type="password"
+                id="accountPassword"
+                placeholder="كلمة المرور"
+                autocomplete="current-password"
+                minlength="8"
+                required
+            >
+
+            <button type="submit" id="accountSubmit"
+                    class="account-submit">
+                تسجيل الدخول
+            </button>
+
+        </form>
+
+        <div class="account-switch">
+
+            <span id="accountSwitchText">ليس لديك حساب؟</span>
+
+            <button type="button" id="accountSwitchButton">
+                إنشاء حساب
+            </button>
+
+        </div>
+
+        <div id="accountMessage" class="account-message"></div>
+
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase.js"></script>
+<script src="js/main.js"></script>
+<script src="js/auth.js"></script>
+
+</body>
+</html>

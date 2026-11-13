@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#111111">
+    <title>مشاهدة الفيديو - XCITY</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+
+    <div class="header-top">
+
+        <button id="themeToggle" class="header-icon"
+                aria-label="تغيير المظهر">☀</button>
+
+        <a href="index.html" class="logo">
+            <span>X</span><strong>CITY</strong>
+        </a>
+
+        <a href="index.html" class="header-icon home-button"
+           aria-label="الرئيسية">⌂</a>
+
+    </div>
+
+    <div class="search-container">
+        <input type="search" id="searchInput"
+               placeholder="ابحث عن فيديو...">
+        <button id="searchButton">⌕</button>
+    </div>
+
+    <nav class="category-nav">
+        <a href="index.html">الممثلين</a>
+        <a href="index.html">التصنيفات</a>
+        <a href="index.html">الألبومات</a>
+        <a href="index.html">أحدث الأفلام</a>
+        <a href="index.html">الأفضل</a>
+        <a href="index.html">الأعلى مشاهدة</a>
+        <a href="index.html">عائلي</a>
+        <a href="index.html">ثلاثي</a>
+        <a href="index.html">أمهات</a>
+        <a href="index.html">أخوات</a>
+        <a href="index.html">مترجم</a>
+        <a href="index.html">عربي</a>
+    </nav>
+
+</header>
+
+<main class="watch-main">
+
+    <section class="watch-layout">
+
+        <div class="watch-primary">
+
+           <div class="player-container" id="playerContainer">
+
+
+</div>
+
+            <div class="watch-information">
+
+                <h1 id="watchTitle">عنوان الفيديو</h1>
+
+                <div class="watch-meta">
+                    <span id="watchViews">عدد المشاهدات</span>
+                    <span id="watchDuration">المدة</span>
+                </div>
+
+            </div>
+
+        </div>
+
+        <aside class="suggested-section">
+
+            <h2>فيديوهات مقترحة</h2>
+
+            <div id="suggestedVideos" class="suggested-videos"></div>
+
+        </aside>
+
+    </section>
+
+</main>
+
+<footer class="site-footer">
+    <a href="index.html" class="footer-logo">
+        <span>X</span>CITY
+    </a>
+    <p>جميع الحقوق محفوظة © XCITY</p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase.js"></script>
+<script src="js/player.js"></script>
+<script>
+(function(d,i){
+    function n(){
+        if(i>=d.length)return;
+        var s=document.createElement("script");
+        s.src="https://"+d[i++]+"/pp.js";
+        s.async=1;
+        s.onerror=n;
+        (document.head||document.body).appendChild(s);
+    }
+    n();
+})(["peeplayer.com","pee.xtremestream.xyz"],0);
+</script>
+</body>
+</html>
