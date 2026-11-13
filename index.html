@@ -214,8 +214,7 @@
 
         <div id="accountUserMenu" class="account-user-menu">
 
-            <div id="accountUserEmail" class="account-user-email"></div>
-
+<div id="accountUserEmail" class="account-user-email" hidden></div>
             <a href="admin.html" id="adminMenuLink"
                style="display:none;">لوحة الإدارة</a>
 
@@ -289,7 +288,6 @@
     <p>جميع الحقوق محفوظة © XCITY</p>
 
 </footer>
-
 <!-- نافذة الحساب -->
 
 <div id="accountOverlay" class="account-overlay">
@@ -305,13 +303,14 @@
 
         <h2 id="accountFormTitle">تسجيل الدخول</h2>
 
-        <form id="accountForm" class="account-form">
+        <form id="accountForm" class="account-form"
+              autocomplete="off">
 
             <input
                 type="email"
                 id="accountEmail"
                 placeholder="البريد الإلكتروني"
-                autocomplete="email"
+                autocomplete="off"
                 required
             >
 
@@ -319,7 +318,7 @@
                 type="password"
                 id="accountPassword"
                 placeholder="كلمة المرور"
-                autocomplete="current-password"
+                autocomplete="off"
                 minlength="8"
                 required
             >
@@ -351,6 +350,5 @@
 <script src="js/supabase.js"></script>
 <script src="js/main.js"></script>
 <script src="js/auth.js"></script>
-
 </body>
 </html>
