@@ -238,76 +238,84 @@
 
         <h2 id="formHeading">إضافة فيديو جديد</h2>
 
-        <form id="videoForm" class="admin-form">
+       <form id="videoForm" class="admin-form">
 
-            <input type="hidden" id="videoId">
+    <input type="hidden" id="videoId">
 
-            <div class="full-width">
-                <label for="videoTitle">عنوان الفيديو</label>
-                <input type="text" id="videoTitle" required
-                       placeholder="أدخل عنوان الفيديو">
-            </div>
+    <div class="full-width">
+        <label for="videoTitle">عنوان الفيديو</label>
+        <input type="text" id="videoTitle" required
+               placeholder="أدخل عنوان الفيديو">
+    </div>
 
-            <div class="full-width">
-                <label for="videoDescription">الوصف</label>
-                <textarea id="videoDescription"
-                          placeholder="وصف الفيديو"></textarea>
-            </div>
+    <div class="full-width">
+        <label for="videoDescription">الوصف</label>
+        <textarea id="videoDescription"
+                  placeholder="وصف الفيديو"></textarea>
+    </div>
 
-            <div>
-                <label for="videoCategory">التصنيف</label>
-                <select id="videoCategory" required>
-                    <option value="">اختر التصنيف</option>
-                </select>
-            </div>
+    <!-- الكلمات المفتاحية -->
+    <div class="full-width">
+        <label for="videoKeywords">الكلمات المفتاحية</label>
+        <textarea id="videoKeywords"
+                  placeholder="مثال: رياضة، كرة قدم، أهداف، مباريات"></textarea>
+        <small>افصل بين الكلمات بفواصل.</small>
+    </div>
 
-            <div>
-                <label for="videoDuration">مدة الفيديو بالثواني</label>
-                <input type="number" id="videoDuration"
-                       min="0" placeholder="مثال: 600">
-            </div>
+    <div>
+        <label for="videoCategory">التصنيف</label>
+        <select id="videoCategory" required>
+            <option value="">اختر التصنيف</option>
+        </select>
+    </div>
 
-            <div class="full-width">
-                <label for="videoCover">رابط صورة الغلاف</label>
-                <input type="url" id="videoCover"
-                       placeholder="https://example.com/cover.jpg">
-            </div>
+    <div>
+        <label for="videoDuration">مدة الفيديو بالثواني</label>
+        <input type="number" id="videoDuration"
+               min="0" placeholder="مثال: 600">
+    </div>
 
-            <div class="full-width">
-                <label for="videoUrl">رابط تشغيل الفيديو</label>
-                <input type="url" id="videoUrl" required
-                       placeholder="رابط الفيديو المباشر">
-            </div>
-<!-- خيارات النشر -->
-<div class="form-group">
-    <label for="publishMode">طريقة النشر</label>
-    <select id="publishMode">
-        <option value="immediate">نشر فوري</option>
-        <option value="scheduled">جدولة النشر</option>
-    </select>
-</div>
+    <div class="full-width">
+        <label for="videoCover">رابط صورة الغلاف</label>
+        <input type="url" id="videoCover"
+               placeholder="https://example.com/cover.jpg">
+    </div>
 
-<div class="form-group" id="scheduleDateGroup" style="display: none;">
-    <label for="scheduledAt">تاريخ ووقت النشر</label>
-    <input
-        type="datetime-local"
-        id="scheduledAt"
-    >
-</div>
-            <div class="full-width">
-                <button type="submit" id="saveVideoButton"
-                        class="admin-button">
-                    حفظ الفيديو
-                </button>
+    <div class="full-width">
+        <label for="videoUrl">رابط تشغيل الفيديو</label>
+        <input type="url" id="videoUrl" required
+               placeholder="رابط الفيديو المباشر">
+    </div>
 
-                <button type="button" id="cancelEditButton"
-                        class="admin-button"
-                        style="display:none;background:#555;">
-                    إلغاء التعديل
-                </button>
-            </div>
+    <!-- خيارات النشر -->
+    <div class="form-group">
+        <label for="publishMode">طريقة النشر</label>
+        <select id="publishMode">
+            <option value="immediate">نشر فوري</option>
+            <option value="scheduled">جدولة النشر</option>
+        </select>
+    </div>
 
-        </form>
+    <div class="form-group" id="scheduleDateGroup"
+         style="display: none;">
+        <label for="scheduledAt">تاريخ ووقت النشر</label>
+        <input type="datetime-local" id="scheduledAt">
+    </div>
+
+    <div class="full-width">
+        <button type="submit" id="saveVideoButton"
+                class="admin-button">
+            حفظ الفيديو
+        </button>
+
+        <button type="button" id="cancelEditButton"
+                class="admin-button"
+                style="display:none;background:#555;">
+            إلغاء التعديل
+        </button>
+    </div>
+
+</form>
 
         <div id="formMessage" class="admin-message"></div>
 

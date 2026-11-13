@@ -14,6 +14,8 @@ const saveVideoButton = document.getElementById("saveVideoButton");
 const cancelEditButton = document.getElementById("cancelEditButton");
 const logoutButton = document.getElementById("logoutButton");
 
+const videoKeywords = document.getElementById("videoKeywords");
+
 let currentUser = null;
 let currentStatus = "pending";
 let categories = [];
@@ -170,6 +172,7 @@ function renderAdminCategories() {
     adminCategories.innerHTML = "";
 
     const addForm = document.createElement("form");
+
     addForm.style.display = "flex";
     addForm.style.gap = "10px";
     addForm.style.flexWrap = "wrap";
@@ -242,6 +245,7 @@ function renderAdminCategories() {
     if (!categories.length) {
 
         const empty = document.createElement("p");
+
         empty.className = "admin-empty";
         empty.textContent = "لا توجد تصنيفات.";
 
@@ -267,6 +271,7 @@ function renderAdminCategories() {
             (category.active ? "" : " (معطل)");
 
         const actions = document.createElement("div");
+
         actions.className = "admin-actions";
 
         const editButton = document.createElement("button");
@@ -355,7 +360,18 @@ videoForm.addEventListener("submit", async event => {
         const id = document.getElementById("videoId").value;
 
         const title = document.getElementById("videoTitle").value.trim();
-        const description = document.getElementById("videoDescription").value.trim();
+
+        const description =
+            document.getElementById("videoDescription").value.trim();
+
+        const keywords = videoKeywords
+            ? videoKeywords.value
+                .split(",")
+                .map(keyword => keyword.trim())
+                .filter(keyword => keyword.length > 0)
+                .join(", ")
+            : "";
+
         const categoryId = videoCategory.value;
 
         const duration = Number(
@@ -363,6 +379,7 @@ videoForm.addEventListener("submit", async event => {
         ) || 0;
 
         const cover = document.getElementById("videoCover").value.trim();
+
         const videoUrl = document.getElementById("videoUrl").value.trim();
 
         if (!title || !categoryId || !videoUrl) {
@@ -371,40 +388,56 @@ videoForm.addEventListener("submit", async event => {
 
         const parsedUrl = new URL(videoUrl);
 
-        if (parsedUrl.protocol !== "https:" &&
-            parsedUrl.protocol !== "http:") {
+        if (
+            parsedUrl.protocol !== "https:" &&
+            parsedUrl.protocol !== "http:"
+        ) {
             throw new Error("رابط الفيديو غير صالح.");
         }
 
-        const publishMode = document.getElementById("publishMode").value;
-const scheduledAt = document.getElementById("scheduledAt").value;
+        const publishMode =
+            document.getElementById("publishMode").value;
 
-if (publishMode === "scheduled" && !scheduledAt) {
-    showMessage("يرجى تحديد موعد النشر.");
-    saveVideoButton.disabled = false;
-    return;
-}
+        const scheduledAt =
+            document.getElementById("scheduledAt").value;
 
-if (publishMode === "scheduled" && new Date(scheduledAt) <= new Date()) {
-    showMessage("يجب اختيار موعد في المستقبل.");
-    saveVideoButton.disabled = false;
-    return;
-}
-const videoData = {
-    title,
-    description,
-    category_id: categoryId,
-    duration_seconds: duration,
-    cover_image_url: cover || null,
-    external_video_url: videoUrl,
-    status: publishMode === "scheduled" ? "scheduled" : "approved",
-    scheduled_at: publishMode === "scheduled"
-        ? new Date(scheduledAt).toISOString()
-        : null,
-    published_at: publishMode === "immediate"
-        ? new Date().toISOString()
-        : null
-};
+        if (publishMode === "scheduled" && !scheduledAt) {
+            throw new Error("يرجى تحديد موعد النشر.");
+        }
+
+        if (
+            publishMode === "scheduled" &&
+            new Date(scheduledAt) <= new Date()
+        ) {
+            throw new Error("يجب اختيار موعد في المستقبل.");
+        }
+
+        const videoData = {
+
+            title,
+            description,
+
+            // الكلمات المفتاحية
+            keywords,
+
+            category_id: categoryId,
+            duration_seconds: duration,
+
+            cover_image_url: cover || null,
+            external_video_url: videoUrl,
+
+            status: publishMode === "scheduled"
+                ? "scheduled"
+                : "approved",
+
+            scheduled_at: publishMode === "scheduled"
+                ? new Date(scheduledAt).toISOString()
+                : null,
+
+            published_at: publishMode === "immediate"
+                ? new Date().toISOString()
+                : null
+        };
 
         if (id) {
 
@@ -415,19 +448,19 @@ const videoData = {
 
             if (error) throw error;
 
-            showMessage("تم تعديل بيانات الفيديو.", true);
+            showMessage("تم تعديل بيانات الفيديو والكلمات المفتاحية.", true);
 
-       } else {
+        } else {
 
-    videoData.uploader_id = currentUser.id;
+            videoData.uploader_id = currentUser.id;
 
-    const { error } = await supabaseClient
-        .from("videos")
-        .insert(videoData);
+            const { error } = await supabaseClient
+                .from("videos")
+                .insert(videoData);
 
             if (error) throw error;
 
-            showMessage("تمت إضافة الفيديو بنجاح.", true);
+            showMessage("تمت إضافة الفيديو والكلمات المفتاحية بنجاح.", true);
         }
 
         resetVideoForm();
@@ -461,6 +494,13 @@ function resetVideoForm() {
     saveVideoButton.textContent = "حفظ الفيديو";
 
     cancelEditButton.style.display = "none";
+
+    const scheduleGroup =
+        document.getElementById("scheduleDateGroup");
+
+    if (scheduleGroup) {
+        scheduleGroup.style.display = "none";
+    }
 }
 
 // =================================
@@ -474,18 +514,83 @@ cancelEditButton.addEventListener("click", () => {
 });
 
 // =================================
+// تحويل التاريخ إلى صيغة datetime-local
+// =================================
+
+function toLocalDateTime(value) {
+
+    if (!value) return "";
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) return "";
+
+    const offset = date.getTimezoneOffset() * 60000;
+
+    return new Date(date.getTime() - offset)
+        .toISOString()
+        .slice(0, 16);
+}
+
+// =================================
 // تعديل بيانات فيديو
 // =================================
 
 function editVideo(video) {
 
     document.getElementById("videoId").value = video.id;
-    document.getElementById("videoTitle").value = video.title || "";
-    document.getElementById("videoDescription").value = video.description || "";
-    document.getElementById("videoCategory").value = video.category_id || "";
-    document.getElementById("videoDuration").value = video.duration_seconds || "";
-    document.getElementById("videoCover").value = video.cover_image_url || "";
-    document.getElementById("videoUrl").value = video.external_video_url || "";
+
+    document.getElementById("videoTitle").value =
+        video.title || "";
+
+    document.getElementById("videoDescription").value =
+        video.description || "";
+
+    document.getElementById("videoCategory").value =
+        video.category_id || "";
+
+    document.getElementById("videoDuration").value =
+        video.duration_seconds || "";
+
+    document.getElementById("videoCover").value =
+        video.cover_image_url || "";
+
+    document.getElementById("videoUrl").value =
+        video.external_video_url || "";
+
+    // استرجاع الكلمات المفتاحية
+    if (videoKeywords) {
+        videoKeywords.value = video.keywords || "";
+    }
+
+    // استرجاع إعدادات الجدولة
+    const publishMode = document.getElementById("publishMode");
+
+    const scheduledAt = document.getElementById("scheduledAt");
+
+    const scheduleGroup =
+        document.getElementById("scheduleDateGroup");
+
+    if (video.status === "scheduled" && video.scheduled_at) {
+
+        publishMode.value = "scheduled";
+
+        scheduledAt.value = toLocalDateTime(video.scheduled_at);
+
+        if (scheduleGroup) {
+            scheduleGroup.style.display = "block";
+        }
+
+    } else {
+
+        publishMode.value = "immediate";
+
+        scheduledAt.value = "";
+
+        if (scheduleGroup) {
+            scheduleGroup.style.display = "none";
+        }
+    }
 
     formHeading.textContent = "تعديل بيانات الفيديو";
 
@@ -516,6 +621,7 @@ async function loadAdminVideos() {
                 id,
                 title,
                 description,
+                keywords,
                 category_id,
                 external_video_url,
                 cover_image_url,
@@ -525,7 +631,6 @@ async function loadAdminVideos() {
                 created_at,
                 scheduled_at,
                 published_at
-
             `)
             .eq("status", currentStatus)
             .order("created_at", { ascending: false });
@@ -587,22 +692,38 @@ function renderAdminVideos(videos) {
 
         const description = document.createElement("p");
 
-        description.textContent = video.description || "لا يوجد وصف.";
+        description.textContent =
+            video.description || "لا يوجد وصف.";
 
         const status = document.createElement("p");
 
         status.textContent = "الحالة: " + video.status;
-if (video.status === "scheduled" && video.scheduled_at) {
-    const scheduleInfo = document.createElement("p");
 
-    scheduleInfo.textContent =
-        "موعد النشر: " +
-        new Date(video.scheduled_at).toLocaleString("ar");
+        // عرض الكلمات المفتاحية
+        const keywordsElement = document.createElement("p");
 
-    scheduleInfo.style.color = "#ff9800";
+        keywordsElement.textContent = video.keywords
+            ? "الكلمات المفتاحية: " + video.keywords
+            : "لا توجد كلمات مفتاحية.";
 
-    card.appendChild(scheduleInfo);
-}
+        keywordsElement.style.color = "#ff9800";
+
+        if (
+            video.status === "scheduled" &&
+            video.scheduled_at
+        ) {
+
+            const scheduleInfo = document.createElement("p");
+
+            scheduleInfo.textContent =
+                "موعد النشر: " +
+                new Date(video.scheduled_at).toLocaleString("ar");
+
+            scheduleInfo.style.color = "#ff9800";
+
+            card.appendChild(scheduleInfo);
+        }
+
         const actions = document.createElement("div");
 
         actions.className = "admin-actions";
@@ -651,40 +772,75 @@ if (video.status === "scheduled" && video.scheduled_at) {
         });
 
         actions.appendChild(deleteButton);
-const statusButton = document.createElement("button");
 
-statusButton.className = "edit-button";
-statusButton.textContent =
-    video.status === "approved" ? "رفض الفيديو" : "نشر الفيديو";
+        // زر تغيير الحالة للفيديوهات الأخرى
+        if (
+            video.status === "approved" ||
+            video.status === "rejected"
+        ) {
 
-statusButton.addEventListener("click", async () => {
+            const statusButton = document.createElement("button");
 
-    const newStatus =
-        video.status === "approved" ? "rejected" : "approved";
+            statusButton.className = "edit-button";
+
+            statusButton.textContent =
+                video.status === "approved"
+                    ? "رفض الفيديو"
+                    : "نشر الفيديو";
+
+            statusButton.addEventListener("click", async () => {
+
+                const newStatus =
+    video.status === "approved"
+        ? "rejected"
+        : "approved";
+
+if (!confirm("هل تريد تغيير حالة الفيديو؟")) return;
+
+try {
 
     const { error } = await supabaseClient
         .from("videos")
-        .update({ status: newStatus })
+        .update({
+            status: newStatus,
+            published_at: newStatus === "approved"
+                ? new Date().toISOString()
+                : null
+        })
         .eq("id", video.id);
 
-    if (error) {
-        alert("حدث خطأ أثناء تغيير حالة الفيديو.");
-        console.error(error);
-        return;
-    }
+    if (error) throw error;
 
-    alert("تم تغيير حالة الفيديو بنجاح.");
+    await loadAdminVideos();
 
-    loadVideos();
+    showMessage("تم تغيير حالة الفيديو بنجاح.", true);
+
+} catch (error) {
+
+    console.error(error);
+
+    showMessage(
+        "تعذر تغيير حالة الفيديو: " + error.message
+    );
+}
 });
 
 actions.appendChild(statusButton);
-        content.append(title, description, status, actions);
+}
 
-        card.append(image, content);
+content.append(
+    title,
+    description,
+    keywordsElement,
+    status,
+    actions
+);
 
-        adminVideos.appendChild(card);
-    });
+card.append(image, content);
+
+adminVideos.appendChild(card);
+
+});
 }
 
 // =================================
@@ -703,7 +859,12 @@ async function changeVideoStatus(video, newStatus) {
 
         const { error } = await supabaseClient
             .from("videos")
-            .update({ status: newStatus })
+            .update({
+                status: newStatus,
+                published_at: newStatus === "approved"
+                    ? new Date().toISOString()
+                    : null
+            })
             .eq("id", video.id);
 
         if (error) throw error;
@@ -807,7 +968,9 @@ async function initializeAdmin() {
 
         console.error("Admin Initialization Error:", error);
 
-        showMessage("حدث خطأ أثناء تجهيز لوحة الإدارة: " + error.message);
+        showMessage(
+            "حدث خطأ أثناء تجهيز لوحة الإدارة: " + error.message
+        );
     }
 }
 
