@@ -11,7 +11,8 @@
     "binding": "ASSETS",
     "run_worker_first": [
   "/watch.html",
-  "/sitemap.xml"
+  "/sitemap.xml",
+  "/robots.txt"
 ]
   }
 }
