@@ -1,6 +1,6 @@
 /* =================================
    XCITY - MAIN JAVASCRIPT
-   IMPROVED SEARCH & CATEGORIES
+   SEARCH WITH HIDDEN KEYWORDS
 ================================= */
 
 const themeToggle = document.getElementById("themeToggle");
@@ -27,11 +27,9 @@ function initializeTheme() {
     if (!themeToggle) return;
 
     const savedTheme = localStorage.getItem("xcity-theme");
-
     const isLight = savedTheme === "light";
 
     document.body.classList.toggle("light-mode", isLight);
-
     themeToggle.textContent = isLight ? "☾" : "☀";
 
     themeToggle.addEventListener("click", () => {
@@ -122,6 +120,7 @@ async function loadVideosFromDatabase() {
             id,
             title,
             description,
+            keywords,
             cover_image_url,
             preview_frames,
             duration_seconds,
@@ -160,14 +159,20 @@ async function loadVideosFromDatabase() {
             id: video.id,
             title: video.title || "بدون عنوان",
             description: video.description || "",
+
+            // الكلمات المفتاحية للبحث الداخلي فقط
+            keywords: video.keywords || "",
+
             viewsNumber: Number(video.views_count) || 0,
             views: formatViews(video.views_count),
             duration: formatDuration(video.duration_seconds),
             cover: video.cover_image_url || "",
             frames,
+
             categories: categoryData
                 ? [categoryData.slug]
                 : [],
+
             date: video.created_at
                 ? new Date(video.created_at).getTime()
                 : 0
@@ -295,9 +300,15 @@ function updateVideos() {
         : "";
 
     let results = videos.filter(video => {
-        const searchableText =
-            `${video.title} ${video.description}`
-                .toLocaleLowerCase("ar");
+
+        // البحث في العنوان والوصف والكلمات المفتاحية
+        const searchableText = [
+            video.title,
+            video.description,
+            video.keywords
+        ]
+            .join(" ")
+            .toLocaleLowerCase("ar");
 
         const matchesSearch =
             searchableText.includes(keyword);

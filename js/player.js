@@ -172,6 +172,99 @@ async function recordVideoView(id) {
         console.error("View Counter Error:", error);
     }
 }
+/* DYNAMIC VIDEO SEO */
+
+function updateVideoSEO(video) {
+    const title = video.title || "مشاهدة الفيديو";
+    const description = video.description ||
+        `شاهد ${title} على XCITY.`;
+
+    const pageUrl = window.location.origin +
+        window.location.pathname +
+        "?id=" + encodeURIComponent(video.id);
+
+    const imageUrl = video.cover_image_url || "";
+
+    function setMeta(attribute, key, content) {
+        if (!content) return;
+
+        let element = document.querySelector(
+            `meta[${attribute}="${key}"]`
+        );
+
+        if (!element) {
+            element = document.createElement("meta");
+            element.setAttribute(attribute, key);
+            document.head.appendChild(element);
+        }
+
+        element.setAttribute("content", content);
+    }
+
+    document.title = title + " - XCITY";
+
+    setMeta("name", "description", description);
+    setMeta("property", "og:type", "video.other");
+    setMeta("property", "og:title", title + " - XCITY");
+    setMeta("property", "og:description", description);
+    setMeta("property", "og:url", pageUrl);
+    setMeta("property", "og:image", imageUrl);
+    setMeta("name", "twitter:card", "summary_large_image");
+    setMeta("name", "twitter:title", title + " - XCITY");
+    setMeta("name", "twitter:description", description);
+    setMeta("name", "twitter:image", imageUrl);
+
+    let canonical = document.querySelector(
+        'link[rel="canonical"]'
+    );
+
+    if (!canonical) {
+        canonical = document.createElement("link");
+        canonical.rel = "canonical";
+        document.head.appendChild(canonical);
+    }
+
+    canonical.href = pageUrl;
+
+    /* VIDEO STRUCTURED DATA */
+
+    const oldSchema = document.getElementById("videoSchema");
+
+    if (oldSchema) {
+        oldSchema.remove();
+    }
+
+    const duration = Number(video.duration_seconds);
+
+    const schema = {
+        "@context": "https://schema.org",
+        "@type": "VideoObject",
+        "name": title,
+        "description": description,
+        "thumbnailUrl": imageUrl ? [imageUrl] : undefined,
+        "embedUrl": video.external_video_url || undefined,
+        "url": pageUrl,
+        "duration": duration > 0
+            ? "PT" + Math.floor(duration) + "S"
+            : undefined,
+        "uploadDate": video.created_at
+            ? new Date(video.created_at).toISOString()
+            : undefined
+    };
+
+    Object.keys(schema).forEach(key => {
+        if (schema[key] === undefined) {
+            delete schema[key];
+        }
+    });
+
+    const script = document.createElement("script");
+    script.id = "videoSchema";
+    script.type = "application/ld+json";
+    script.textContent = JSON.stringify(schema);
+
+    document.head.appendChild(script);
+}
 /* LOAD CURRENT VIDEO */
 
 async function loadCurrentVideo() {
@@ -196,7 +289,8 @@ async function loadCurrentVideo() {
                 duration_seconds,
                 views_count,
                 category_id,
-                status
+                status,
+                created_at
             `)
             .eq("id", videoId)
             .eq("status", "approved")
@@ -224,8 +318,7 @@ async function loadCurrentVideo() {
                 formatPlayerDuration(data.duration_seconds);
         }
 
-        document.title =
-            (data.title || "مشاهدة الفيديو") + " - XCITY";
+        updateVideoSEO(data);
 
         if (data.external_video_url) {
             if (isValidVideoUrl(data.external_video_url)) {

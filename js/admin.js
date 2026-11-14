@@ -19,6 +19,120 @@ const videoKeywords = document.getElementById("videoKeywords");
 let currentUser = null;
 let currentStatus = "pending";
 let categories = [];
+// =================================
+// إحصائيات لوحة الإدارة
+// =================================
+
+async function loadAdminStats() {
+
+    const totalElement = document.getElementById("statTotalVideos");
+    const approvedElement = document.getElementById("statApprovedVideos");
+    const pendingElement = document.getElementById("statPendingVideos");
+    const scheduledElement = document.getElementById("statScheduledVideos");
+    const viewsElement = document.getElementById("statTotalViews");
+    const topVideoElement = document.getElementById("statTopVideo");
+
+    try {
+
+        let allVideos = [];
+        let offset = 0;
+        const pageSize = 1000;
+
+        // تحميل جميع الفيديوهات على دفعات
+        while (true) {
+
+            const { data, error } = await supabaseClient
+                .from("videos")
+                .select("title,status,views_count")
+                .range(offset, offset + pageSize - 1);
+
+            if (error) throw error;
+
+            const videos = data || [];
+
+            allVideos = allVideos.concat(videos);
+
+            if (videos.length < pageSize) break;
+
+            offset += pageSize;
+        }
+
+        // حساب الحالات
+        const total = allVideos.length;
+
+        const approved = allVideos.filter(
+            video => video.status === "approved"
+        ).length;
+
+        const pending = allVideos.filter(
+            video => video.status === "pending"
+        ).length;
+
+        const scheduled = allVideos.filter(
+            video => video.status === "scheduled"
+        ).length;
+
+        // إجمالي المشاهدات
+        const totalViews = allVideos.reduce(
+            (sum, video) => sum + (Number(video.views_count) || 0),
+            0
+        );
+
+        // الفيديو الأكثر مشاهدة من المنشورة
+        const topVideo = allVideos
+            .filter(video => video.status === "approved")
+            .sort(
+                (a, b) =>
+                    (Number(b.views_count) || 0) -
+                    (Number(a.views_count) || 0)
+            )[0];
+
+        // تحديث الواجهة
+        const formatNumber = number =>
+            number.toLocaleString("ar");
+
+        if (totalElement) {
+            totalElement.textContent = formatNumber(total);
+        }
+
+        if (approvedElement) {
+            approvedElement.textContent = formatNumber(approved);
+        }
+
+        if (pendingElement) {
+            pendingElement.textContent = formatNumber(pending);
+        }
+
+        if (scheduledElement) {
+            scheduledElement.textContent = formatNumber(scheduled);
+        }
+
+        if (viewsElement) {
+            viewsElement.textContent = formatNumber(totalViews);
+        }
+
+        if (topVideoElement) {
+            topVideoElement.textContent = topVideo
+                ? topVideo.title
+                : "لا يوجد فيديو منشور";
+        }
+
+    } catch (error) {
+
+        console.error("Admin Statistics Error:", error);
+
+        [
+            totalElement,
+            approvedElement,
+            pendingElement,
+            scheduledElement,
+            viewsElement,
+            topVideoElement
+        ].forEach(element => {
+            if (element) element.textContent = "خطأ";
+        });
+    }
+}
 
 // =================================
 // المظهر
@@ -465,18 +579,20 @@ videoForm.addEventListener("submit", async event => {
 
         resetVideoForm();
 
-        await loadAdminVideos();
+await loadAdminVideos();
 
-    } catch (error) {
+await loadAdminStats();
 
-        console.error("Save Video Error:", error);
+} catch (error) {
 
-        showMessage("تعذر حفظ الفيديو: " + error.message);
+    console.error("Save Video Error:", error);
 
-    } finally {
+    showMessage("تعذر حفظ الفيديو: " + error.message);
 
-        saveVideoButton.disabled = false;
-    }
+} finally {
+
+    saveVideoButton.disabled = false;
+}
 });
 
 // =================================
@@ -812,7 +928,7 @@ try {
     if (error) throw error;
 
     await loadAdminVideos();
-
+    await loadAdminStats();
     showMessage("تم تغيير حالة الفيديو بنجاح.", true);
 
 } catch (error) {
@@ -882,7 +998,7 @@ async function changeVideoStatus(video, newStatus) {
         }
 
         await loadAdminVideos();
-
+        await loadAdminStats();
         showMessage(
             newStatus === "approved"
                 ? "تم قبول الفيديو ونشره."
@@ -918,7 +1034,7 @@ async function deleteVideo(video) {
         if (error) throw error;
 
         await loadAdminVideos();
-
+        await loadAdminStats();
         showMessage("تم حذف الفيديو.", true);
 
     } catch (error) {
@@ -961,9 +1077,8 @@ async function initializeAdmin() {
     try {
 
         await loadAdminCategories();
-
         await loadAdminVideos();
-
+        await loadAdminStats();
     } catch (error) {
 
         console.error("Admin Initialization Error:", error);
