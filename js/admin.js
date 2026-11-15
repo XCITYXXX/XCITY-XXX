@@ -1,3 +1,4 @@
+
 /* =================================
    XCITY - ADMIN PANEL
 ================================= */
@@ -19,6 +20,8 @@ const videoKeywords = document.getElementById("videoKeywords");
 let currentUser = null;
 let currentStatus = "pending";
 let categories = [];
+let editingVideo = null;
+
 // =================================
 // إحصائيات لوحة الإدارة
 // =================================
@@ -228,21 +231,23 @@ async function checkAdminAccess() {
 // تسجيل الخروج
 // =================================
 
-logoutButton.addEventListener("click", async () => {
+if (logoutButton) {
+    logoutButton.addEventListener("click", async () => {
 
-    const confirmed = confirm("هل تريد تسجيل الخروج؟");
+        const confirmed = confirm("هل تريد تسجيل الخروج؟");
 
-    if (!confirmed) return;
+        if (!confirmed) return;
 
-    const { error } = await supabaseClient.auth.signOut();
+        const { error } = await supabaseClient.auth.signOut();
 
-    if (error) {
-        alert("تعذر تسجيل الخروج.");
-        return;
-    }
+        if (error) {
+            alert("تعذر تسجيل الخروج.");
+            return;
+        }
 
-    window.location.href = "index.html";
-});
+        window.location.href = "index.html";
+    });
+}
 
 // =================================
 // تحميل التصنيفات
@@ -446,7 +451,7 @@ function renderAdminCategories() {
 
             } catch (error) {
 
-                showMessage("تعذر تحديث التصنيف: " + error.message);
+                showMessage("تعذر تحديث حالة التصنيف: " + error.message);
             }
         });
 
@@ -480,7 +485,7 @@ videoForm.addEventListener("submit", async event => {
 
         const keywords = videoKeywords
             ? videoKeywords.value
-                .split(",")
+                .split(/[,،]/)
                 .map(keyword => keyword.trim())
                 .filter(keyword => keyword.length > 0)
                 .join(", ")
@@ -553,6 +558,20 @@ videoForm.addEventListener("submit", async event => {
                 : null
         };
 
+        // الحفاظ على حالة الفيديو الأصلية عند تعديل بياناته
+        if (id && editingVideo) {
+
+            videoData.status = editingVideo.status;
+
+            videoData.scheduled_at =
+                editingVideo.status === "scheduled" && scheduledAt
+                    ? new Date(scheduledAt).toISOString()
+                    : editingVideo.scheduled_at || null;
+
+            videoData.published_at =
+                editingVideo.published_at || null;
+        }
+
         if (id) {
 
             const { error } = await supabaseClient
@@ -579,20 +598,20 @@ videoForm.addEventListener("submit", async event => {
 
         resetVideoForm();
 
-await loadAdminVideos();
+        await loadAdminVideos();
 
-await loadAdminStats();
+        await loadAdminStats();
 
-} catch (error) {
+    } catch (error) {
 
-    console.error("Save Video Error:", error);
+        console.error("Save Video Error:", error);
 
-    showMessage("تعذر حفظ الفيديو: " + error.message);
+        showMessage("تعذر حفظ الفيديو: " + error.message);
 
-} finally {
+    } finally {
 
-    saveVideoButton.disabled = false;
-}
+        saveVideoButton.disabled = false;
+    }
 });
 
 // =================================
@@ -600,6 +619,8 @@ await loadAdminStats();
 // =================================
 
 function resetVideoForm() {
+
+    editingVideo = null;
 
     videoForm.reset();
 
@@ -653,6 +674,8 @@ function toLocalDateTime(value) {
 // =================================
 
 function editVideo(video) {
+
+    editingVideo = video;
 
     document.getElementById("videoId").value = video.id;
 
@@ -731,33 +754,52 @@ async function loadAdminVideos() {
 
     try {
 
-        const { data, error } = await supabaseClient
-            .from("videos")
-            .select(`
-                id,
-                title,
-                description,
-                keywords,
-                category_id,
-                external_video_url,
-                cover_image_url,
-                duration_seconds,
-                views_count,
-                status,
-                created_at,
-                scheduled_at,
-                published_at
-            `)
-            .eq("status", currentStatus)
-            .order("created_at", { ascending: false });
+        let allVideos = [];
+        let offset = 0;
+        const pageSize = 1000;
 
-        if (error) throw error;
+        // تحميل جميع الفيديوهات على دفعات
+        while (true) {
 
-        renderAdminVideos(data || []);
+            const { data, error } = await supabaseClient
+                .from("videos")
+                .select(`
+                    id,
+                    title,
+                    description,
+                    keywords,
+                    category_id,
+                    external_video_url,
+                    cover_image_url,
+                    duration_seconds,
+                    views_count,
+                    status,
+                    created_at,
+                    scheduled_at,
+                    published_at
+                `)
+                .eq("status", currentStatus)
+                .order("created_at", { ascending: false })
+                .range(offset, offset + pageSize - 1);
+
+            if (error) throw error;
+
+            const batch = data || [];
+
+            allVideos.push(...batch);
+
+            if (batch.length < pageSize) {
+                break;
+            }
+
+            offset += pageSize;
+        }
+
+        renderAdminVideos(allVideos);
 
     } catch (error) {
 
-        console.error(error);
+        console.error("Admin Videos Error:", error);
 
         adminVideos.textContent =
             "تعذر تحميل الفيديوهات: " + error.message;
@@ -907,56 +949,57 @@ function renderAdminVideos(videos) {
             statusButton.addEventListener("click", async () => {
 
                 const newStatus =
-    video.status === "approved"
-        ? "rejected"
-        : "approved";
+                    video.status === "approved"
+                        ? "rejected"
+                        : "approved";
 
-if (!confirm("هل تريد تغيير حالة الفيديو؟")) return;
+                if (!confirm("هل تريد تغيير حالة الفيديو؟")) return;
 
-try {
+                try {
 
-    const { error } = await supabaseClient
-        .from("videos")
-        .update({
-            status: newStatus,
-            published_at: newStatus === "approved"
-                ? new Date().toISOString()
-                : null
-        })
-        .eq("id", video.id);
+                    const { error } = await supabaseClient
+                        .from("videos")
+                        .update({
+                            status: newStatus,
+                            published_at: newStatus === "approved"
+                                ? new Date().toISOString()
+                                : null
+                        })
+                        .eq("id", video.id);
 
-    if (error) throw error;
+                    if (error) throw error;
 
-    await loadAdminVideos();
-    await loadAdminStats();
-    showMessage("تم تغيير حالة الفيديو بنجاح.", true);
+                    await loadAdminVideos();
+                    await loadAdminStats();
 
-} catch (error) {
+                    showMessage("تم تغيير حالة الفيديو بنجاح.", true);
 
-    console.error(error);
+                } catch (error) {
 
-    showMessage(
-        "تعذر تغيير حالة الفيديو: " + error.message
-    );
-}
-});
+                    console.error(error);
 
-actions.appendChild(statusButton);
-}
+                    showMessage(
+                        "تعذر تغيير حالة الفيديو: " + error.message
+                    );
+                }
+            });
 
-content.append(
-    title,
-    description,
-    keywordsElement,
-    status,
-    actions
-);
+            actions.appendChild(statusButton);
+        }
 
-card.append(image, content);
+        content.append(
+            title,
+            description,
+            keywordsElement,
+            status,
+            actions
+        );
 
-adminVideos.appendChild(card);
+        card.append(image, content);
 
-});
+        adminVideos.appendChild(card);
+
+    });
 }
 
 // =================================
@@ -999,6 +1042,7 @@ async function changeVideoStatus(video, newStatus) {
 
         await loadAdminVideos();
         await loadAdminStats();
+
         showMessage(
             newStatus === "approved"
                 ? "تم قبول الفيديو ونشره."
@@ -1035,6 +1079,7 @@ async function deleteVideo(video) {
 
         await loadAdminVideos();
         await loadAdminStats();
+
         showMessage("تم حذف الفيديو.", true);
 
     } catch (error) {
@@ -1079,6 +1124,7 @@ async function initializeAdmin() {
         await loadAdminCategories();
         await loadAdminVideos();
         await loadAdminStats();
+
     } catch (error) {
 
         console.error("Admin Initialization Error:", error);

@@ -1,3 +1,4 @@
+
 /* =================================
    XCITY - PEEPLAYER VIDEO SYSTEM
 ================================= */
@@ -99,6 +100,7 @@ function loadExternalPlayer(url) {
         iframe.height = "100%";
         iframe.frameBorder = "0";
         iframe.scrolling = "no";
+        iframe.title = "مشغل فيديو XCITY";
         iframe.allow = "autoplay; fullscreen; encrypted-media; picture-in-picture";
         iframe.allowFullscreen = true;
 
@@ -112,6 +114,74 @@ function loadExternalPlayer(url) {
     }
 
     iframe.src = url;
+}
+
+/* START WATCH BUTTON */
+
+function createStartWatchButton(video) {
+    if (!playerContainer) return;
+
+    if (!isValidVideoUrl(video.external_video_url)) {
+        showPlayerMessage("رابط تشغيل الفيديو غير صالح.");
+        return;
+    }
+
+    playerContainer.querySelector(".start-watch-overlay")?.remove();
+
+    playerContainer.querySelector("iframe")?.remove();
+
+    const computedPosition = window.getComputedStyle(
+        playerContainer
+    ).position;
+
+    if (computedPosition === "static") {
+        playerContainer.style.position = "relative";
+    }
+
+    const overlay = document.createElement("div");
+
+    overlay.className = "start-watch-overlay";
+
+    overlay.style.position = "absolute";
+    overlay.style.inset = "0";
+    overlay.style.zIndex = "10";
+    overlay.style.display = "flex";
+    overlay.style.alignItems = "center";
+    overlay.style.justifyContent = "center";
+    overlay.style.background = "rgba(0, 0, 0, 0.65)";
+
+    const button = document.createElement("button");
+
+    button.type = "button";
+    button.className = "start-watch-button";
+    button.textContent = "▶ ابدأ المشاهدة";
+    button.setAttribute("aria-label", "ابدأ مشاهدة الفيديو");
+
+    button.style.padding = "15px 30px";
+    button.style.border = "none";
+    button.style.borderRadius = "10px";
+    button.style.background = "#ff9800";
+    button.style.color = "#ffffff";
+    button.style.fontSize = "18px";
+    button.style.fontWeight = "bold";
+    button.style.cursor = "pointer";
+
+    button.addEventListener("click", async () => {
+        button.disabled = true;
+        button.textContent = "جارٍ تشغيل الفيديو...";
+
+        // إزالة زر البداية
+        overlay.remove();
+
+        // تحميل مشغل PeePlayer
+        loadExternalPlayer(video.external_video_url);
+
+        // تسجيل المشاهدة بعد ضغط الزائر
+        await recordVideoView(video.id);
+    });
+
+    overlay.appendChild(button);
+    playerContainer.appendChild(overlay);
 }
 
 /* THEME */
@@ -138,6 +208,7 @@ if (themeToggle) {
         themeToggle.textContent = isLight ? "☾" : "☀";
     });
 }
+
 /* RECORD VIDEO VIEW - 30 MINUTES */
 
 async function recordVideoView(id) {
@@ -172,6 +243,7 @@ async function recordVideoView(id) {
         console.error("View Counter Error:", error);
     }
 }
+
 /* DYNAMIC VIDEO SEO */
 
 function updateVideoSEO(video) {
@@ -265,6 +337,7 @@ function updateVideoSEO(video) {
 
     document.head.appendChild(script);
 }
+
 /* LOAD CURRENT VIDEO */
 
 async function loadCurrentVideo() {
@@ -310,9 +383,7 @@ async function loadCurrentVideo() {
             watchViews.textContent =
                 formatPlayerViews(data.views_count);
         }
-            console.log("بدأ تسجيل المشاهدة:", data.id);
-            await recordVideoView(data.id);
-            console.log("انتهى تسجيل المشاهدة");
+
         if (watchDuration) {
             watchDuration.textContent =
                 formatPlayerDuration(data.duration_seconds);
@@ -322,7 +393,7 @@ async function loadCurrentVideo() {
 
         if (data.external_video_url) {
             if (isValidVideoUrl(data.external_video_url)) {
-                loadExternalPlayer(data.external_video_url);
+                createStartWatchButton(data);
             } else {
                 showPlayerMessage("رابط الفيديو غير صالح.");
             }

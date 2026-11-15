@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -54,10 +55,14 @@
 
         <div class="watch-primary">
 
-           <div class="player-container" id="playerContainer">
+            <div class="player-container" id="playerContainer">
 
+                <div id="playerMessage"
+                     class="player-message"
+                     style="display: none;">
+                </div>
 
-</div>
+            </div>
 
             <div class="watch-information">
 
@@ -94,18 +99,23 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase.js"></script>
 <script src="js/player.js"></script>
+
 <script>
 (function(d,i){
     function n(){
         if(i>=d.length)return;
+
         var s=document.createElement("script");
         s.src="https://"+d[i++]+"/pp.js";
         s.async=1;
         s.onerror=n;
+
         (document.head||document.body).appendChild(s);
     }
+
     n();
 })(["peeplayer.com","pee.xtremestream.xyz"],0);
 </script>
+
 </body>
 </html>

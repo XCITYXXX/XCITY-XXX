@@ -1,3 +1,4 @@
+
 /* =================================
    XCITY - MAIN JAVASCRIPT
    SEARCH WITH HIDDEN KEYWORDS
@@ -104,6 +105,7 @@ async function loadCategoriesFromDatabase() {
 
 /* =================================
    LOAD VIDEOS
+   PAGINATION - 1000 VIDEOS PER PAGE
 ================================= */
 
 async function loadVideosFromDatabase() {
@@ -114,72 +116,95 @@ async function loadVideosFromDatabase() {
     emptyMessage.textContent = "جارٍ تحميل الفيديوهات...";
     emptyMessage.style.display = "block";
 
-    const { data, error } = await supabaseClient
-        .from("videos")
-        .select(`
-            id,
-            title,
-            description,
-            keywords,
-            cover_image_url,
-            preview_frames,
-            duration_seconds,
-            views_count,
-            created_at,
-            status,
-            category:categories (
-                name,
-                slug
-            )
-        `)
-        .eq("status", "approved")
-        .order("created_at", { ascending: false });
+    let allVideos = [];
+    let offset = 0;
+    const pageSize = 1000;
 
-    if (error) {
+    try {
+
+        // تحميل جميع الفيديوهات على دفعات
+        while (true) {
+
+            const { data, error } = await supabaseClient
+                .from("videos")
+                .select(`
+                    id,
+                    title,
+                    description,
+                    keywords,
+                    cover_image_url,
+                    preview_frames,
+                    duration_seconds,
+                    views_count,
+                    created_at,
+                    status,
+                    category:categories (
+                        name,
+                        slug
+                    )
+                `)
+                .eq("status", "approved")
+                .order("created_at", { ascending: false })
+                .range(offset, offset + pageSize - 1);
+
+            if (error) throw error;
+
+            const batch = data || [];
+
+            allVideos.push(...batch);
+
+            // انتهاء التحميل عند استلام أقل من 1000 فيديو
+            if (batch.length < pageSize) break;
+
+            offset += pageSize;
+        }
+
+        // تحويل بيانات الفيديوهات
+        videos = allVideos.map(video => {
+
+            const categoryData = Array.isArray(video.category)
+                ? video.category[0]
+                : video.category;
+
+            const frames = Array.isArray(video.preview_frames)
+                ? video.preview_frames.filter(
+                    frame => typeof frame === "string"
+                )
+                : [];
+
+            return {
+                id: video.id,
+                title: video.title || "بدون عنوان",
+                description: video.description || "",
+
+                // الكلمات المفتاحية للبحث الداخلي فقط
+                keywords: video.keywords || "",
+
+                viewsNumber: Number(video.views_count) || 0,
+                views: formatViews(video.views_count),
+                duration: formatDuration(video.duration_seconds),
+                cover: video.cover_image_url || "",
+                frames,
+
+                categories: categoryData
+                    ? [categoryData.slug]
+                    : [],
+
+                date: video.created_at
+                    ? new Date(video.created_at).getTime()
+                    : 0
+            };
+        });
+
+        updateVideos();
+
+    } catch (error) {
+
         console.error("Videos Error:", error);
 
         emptyMessage.textContent =
             "تعذر تحميل الفيديوهات. حاول مرة أخرى.";
-
-        return;
     }
-
-    videos = (data || []).map(video => {
-        const categoryData = Array.isArray(video.category)
-            ? video.category[0]
-            : video.category;
-
-        const frames = Array.isArray(video.preview_frames)
-            ? video.preview_frames.filter(
-                frame => typeof frame === "string"
-            )
-            : [];
-
-        return {
-            id: video.id,
-            title: video.title || "بدون عنوان",
-            description: video.description || "",
-
-            // الكلمات المفتاحية للبحث الداخلي فقط
-            keywords: video.keywords || "",
-
-            viewsNumber: Number(video.views_count) || 0,
-            views: formatViews(video.views_count),
-            duration: formatDuration(video.duration_seconds),
-            cover: video.cover_image_url || "",
-            frames,
-
-            categories: categoryData
-                ? [categoryData.slug]
-                : [],
-
-            date: video.created_at
-                ? new Date(video.created_at).getTime()
-                : 0
-        };
-    });
-
-    updateVideos();
 }
 
 /* =================================
