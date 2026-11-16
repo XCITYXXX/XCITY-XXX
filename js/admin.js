@@ -3,6 +3,8 @@
    XCITY - ADMIN PANEL
 ================================= */
 
+/* عناصر لوحة الإدارة */
+
 const videoForm = document.getElementById("videoForm");
 const adminVideos = document.getElementById("adminVideos");
 const adminCategories = document.getElementById("adminCategories");
@@ -17,14 +19,35 @@ const logoutButton = document.getElementById("logoutButton");
 
 const videoKeywords = document.getElementById("videoKeywords");
 
+/* عناصر صورة الغلاف */
+
+const videoCover = document.getElementById("videoCover");
+const coverPreviewContainer = document.getElementById("coverPreviewContainer");
+const coverPreviewImage = document.getElementById("coverPreviewImage");
+const coverPreviewLabel = document.getElementById("coverPreviewLabel");
+const clearCoverButton = document.getElementById("clearCoverButton");
+
+/* إعدادات تخزين الصور */
+
+const COVER_BUCKET = "video-covers";
+const MAX_COVER_SIZE = 5 * 1024 * 1024;
+
+const ALLOWED_COVER_TYPES = [
+    "image/jpeg",
+    "image/png",
+    "image/webp"
+];
+
 let currentUser = null;
 let currentStatus = "pending";
 let categories = [];
 let editingVideo = null;
+let coverPreviewObjectUrl = null;
 
-// =================================
-// إحصائيات لوحة الإدارة
-// =================================
+
+/* =================================
+   إحصائيات لوحة الإدارة
+================================= */
 
 async function loadAdminStats() {
 
@@ -41,7 +64,6 @@ async function loadAdminStats() {
         let offset = 0;
         const pageSize = 1000;
 
-        // تحميل جميع الفيديوهات على دفعات
         while (true) {
 
             const { data, error } = await supabaseClient
@@ -60,7 +82,6 @@ async function loadAdminStats() {
             offset += pageSize;
         }
 
-        // حساب الحالات
         const total = allVideos.length;
 
         const approved = allVideos.filter(
@@ -75,13 +96,11 @@ async function loadAdminStats() {
             video => video.status === "scheduled"
         ).length;
 
-        // إجمالي المشاهدات
         const totalViews = allVideos.reduce(
             (sum, video) => sum + (Number(video.views_count) || 0),
             0
         );
 
-        // الفيديو الأكثر مشاهدة من المنشورة
         const topVideo = allVideos
             .filter(video => video.status === "approved")
             .sort(
@@ -90,7 +109,6 @@ async function loadAdminStats() {
                     (Number(a.views_count) || 0)
             )[0];
 
-        // تحديث الواجهة
         const formatNumber = number =>
             number.toLocaleString("ar");
 
@@ -137,9 +155,10 @@ async function loadAdminStats() {
     }
 }
 
-// =================================
-// المظهر
-// =================================
+
+/* =================================
+   المظهر
+================================= */
 
 const themeToggle = document.getElementById("themeToggle");
 
@@ -148,23 +167,31 @@ if (localStorage.getItem("xcity-theme") === "light") {
 }
 
 if (themeToggle) {
+
     themeToggle.addEventListener("click", () => {
+
         document.body.classList.toggle("light-mode");
+
+        const isLight =
+            document.body.classList.contains("light-mode");
 
         localStorage.setItem(
             "xcity-theme",
-            document.body.classList.contains("light-mode")
-                ? "light"
-                : "dark"
+            isLight ? "light" : "dark"
         );
+
+        themeToggle.textContent = isLight ? "☾" : "☀";
     });
 }
 
-// =================================
-// رسائل لوحة الإدارة
-// =================================
+
+/* =================================
+   رسائل لوحة الإدارة
+================================= */
 
 function showMessage(message, success = false) {
+
+    if (!formMessage) return;
 
     formMessage.textContent = message;
     formMessage.style.display = "block";
@@ -177,12 +204,251 @@ function showMessage(message, success = false) {
 }
 
 function hideMessage() {
+
+    if (!formMessage) return;
+
     formMessage.style.display = "none";
 }
 
-// =================================
-// التحقق من المدير
-// =================================
+
+/* =================================
+   معاينة صورة الغلاف
+================================= */
+
+function releaseCoverPreviewUrl() {
+
+    if (coverPreviewObjectUrl) {
+
+        URL.revokeObjectURL(coverPreviewObjectUrl);
+
+        coverPreviewObjectUrl = null;
+    }
+}
+
+function showCoverPreview(imageUrl, label = "معاينة صورة الغلاف") {
+
+    if (!coverPreviewContainer || !coverPreviewImage) return;
+
+    if (!imageUrl) {
+
+        hideCoverPreview();
+
+        return;
+    }
+
+    coverPreviewImage.src = imageUrl;
+    coverPreviewImage.alt = label;
+
+    if (coverPreviewLabel) {
+        coverPreviewLabel.textContent = label;
+    }
+
+    coverPreviewContainer.hidden = false;
+}
+
+function hideCoverPreview() {
+
+    releaseCoverPreviewUrl();
+
+    if (coverPreviewImage) {
+        coverPreviewImage.removeAttribute("src");
+    }
+
+    if (coverPreviewContainer) {
+        coverPreviewContainer.hidden = true;
+    }
+}
+
+function restoreCurrentCoverPreview() {
+
+    releaseCoverPreviewUrl();
+
+    if (videoCover) {
+        videoCover.value = "";
+    }
+
+    if (editingVideo && editingVideo.cover_image_url) {
+
+        showCoverPreview(
+            editingVideo.cover_image_url,
+            "الصورة الحالية للفيديو"
+        );
+
+    } else {
+
+        hideCoverPreview();
+    }
+}
+
+
+/* =================================
+   التحقق من صورة الغلاف
+================================= */
+
+function validateCoverFile(file) {
+
+    if (!file) return null;
+
+    if (!ALLOWED_COVER_TYPES.includes(file.type)) {
+
+        return "صيغة الصورة غير مدعومة. استخدم JPG أو PNG أو WebP.";
+    }
+
+    if (file.size > MAX_COVER_SIZE) {
+
+        return "حجم الصورة أكبر من 5 ميغابايت.";
+    }
+
+    if (file.size <= 0) {
+
+        return "ملف الصورة فارغ أو غير صالح.";
+    }
+
+    return null;
+}
+
+
+/* =================================
+   اختيار صورة من الجهاز
+================================= */
+
+if (videoCover) {
+
+    videoCover.addEventListener("change", () => {
+
+        hideMessage();
+
+        const file = videoCover.files?.[0];
+
+        if (!file) {
+
+            restoreCurrentCoverPreview();
+
+            return;
+        }
+
+        const validationError = validateCoverFile(file);
+
+        if (validationError) {
+
+            videoCover.value = "";
+
+            restoreCurrentCoverPreview();
+
+            showMessage(validationError);
+
+            return;
+        }
+
+        releaseCoverPreviewUrl();
+
+        coverPreviewObjectUrl = URL.createObjectURL(file);
+
+        showCoverPreview(
+            coverPreviewObjectUrl,
+            "معاينة الصورة الجديدة"
+        );
+    });
+}
+
+
+/* =================================
+   إلغاء اختيار صورة جديدة
+================================= */
+
+if (clearCoverButton) {
+
+    clearCoverButton.addEventListener("click", () => {
+
+        restoreCurrentCoverPreview();
+
+        hideMessage();
+    });
+}
+
+
+/* =================================
+   رفع الصورة إلى Supabase Storage
+================================= */
+
+async function uploadCoverImage(file) {
+
+    if (!file) {
+        return null;
+    }
+
+    const validationError = validateCoverFile(file);
+
+    if (validationError) {
+        throw new Error(validationError);
+    }
+
+    if (!currentUser || !currentUser.id) {
+        throw new Error("يجب تسجيل الدخول قبل رفع صورة الغلاف.");
+    }
+
+    const extensions = {
+        "image/jpeg": "jpg",
+        "image/png": "png",
+        "image/webp": "webp"
+    };
+
+    const extension = extensions[file.type];
+
+    if (!extension) {
+        throw new Error("صيغة الصورة غير مدعومة.");
+    }
+
+    const uniqueName =
+        typeof crypto !== "undefined" && crypto.randomUUID
+            ? crypto.randomUUID()
+            : Date.now() + "-" + Math.random().toString(36).slice(2);
+
+    const filePath =
+        `${currentUser.id}/${Date.now()}-${uniqueName}.${extension}`;
+
+    const { data, error } = await supabaseClient
+        .storage
+        .from(COVER_BUCKET)
+        .upload(filePath, file, {
+            cacheControl: "31536000",
+            contentType: file.type,
+            upsert: false
+        });
+
+    if (error) {
+
+        console.error("Cover Upload Error:", error);
+
+        throw new Error(
+            "تعذر رفع الصورة. تحقق من وجود حاوية " +
+            COVER_BUCKET +
+            " ومن صلاحيات الرفع في Supabase Storage. التفاصيل: " +
+            error.message
+        );
+    }
+
+    const uploadedPath = data?.path || filePath;
+
+    const { data: publicData } = supabaseClient
+        .storage
+        .from(COVER_BUCKET)
+        .getPublicUrl(uploadedPath);
+
+    if (!publicData || !publicData.publicUrl) {
+
+        throw new Error(
+            "تم رفع الصورة، لكن تعذر إنشاء رابطها العام."
+        );
+    }
+
+    return publicData.publicUrl;
+}
+
+
+/* =================================
+   التحقق من المدير
+================================= */
 
 async function checkAdminAccess() {
 
@@ -196,8 +462,11 @@ async function checkAdminAccess() {
         const session = sessionData.session;
 
         if (!session) {
+
             alert("يرجى تسجيل الدخول أولاً.");
+
             window.location.href = "index.html";
+
             return false;
         }
 
@@ -209,8 +478,11 @@ async function checkAdminAccess() {
         if (error) throw error;
 
         if (isAdmin !== true) {
+
             alert("ليس لديك صلاحية الدخول إلى لوحة الإدارة.");
+
             window.location.href = "index.html";
+
             return false;
         }
 
@@ -221,17 +493,20 @@ async function checkAdminAccess() {
         console.error("Admin Access Error:", error);
 
         alert("تعذر التحقق من صلاحيات المدير.");
+
         window.location.href = "index.html";
 
         return false;
     }
 }
 
-// =================================
-// تسجيل الخروج
-// =================================
+
+/* =================================
+   تسجيل الخروج
+================================= */
 
 if (logoutButton) {
+
     logoutButton.addEventListener("click", async () => {
 
         const confirmed = confirm("هل تريد تسجيل الخروج؟");
@@ -241,7 +516,9 @@ if (logoutButton) {
         const { error } = await supabaseClient.auth.signOut();
 
         if (error) {
+
             alert("تعذر تسجيل الخروج.");
+
             return;
         }
 
@@ -249,9 +526,10 @@ if (logoutButton) {
     });
 }
 
-// =================================
-// تحميل التصنيفات
-// =================================
+
+/* =================================
+   تحميل التصنيفات
+================================= */
 
 async function loadAdminCategories() {
 
@@ -282,9 +560,10 @@ async function loadAdminCategories() {
     renderAdminCategories();
 }
 
-// =================================
-// عرض التصنيفات
-// =================================
+
+/* =================================
+   عرض التصنيفات
+================================= */
 
 function renderAdminCategories() {
 
@@ -351,6 +630,7 @@ function renderAdminCategories() {
         } catch (error) {
 
             console.error(error);
+
             showMessage("تعذرت إضافة التصنيف: " + error.message);
 
         } finally {
@@ -369,6 +649,7 @@ function renderAdminCategories() {
         empty.textContent = "لا توجد تصنيفات.";
 
         adminCategories.appendChild(empty);
+
         return;
     }
 
@@ -451,20 +732,24 @@ function renderAdminCategories() {
 
             } catch (error) {
 
-                showMessage("تعذر تحديث حالة التصنيف: " + error.message);
+                showMessage(
+                    "تعذر تحديث حالة التصنيف: " + error.message
+                );
             }
         });
 
         actions.append(editButton, toggleButton);
+
         row.append(name, actions);
 
         adminCategories.appendChild(row);
     });
 }
 
-// =================================
-// حفظ فيديو جديد أو تعديل فيديو
-// =================================
+
+/* =================================
+   حفظ فيديو جديد أو تعديل فيديو
+================================= */
 
 videoForm.addEventListener("submit", async event => {
 
@@ -497,11 +782,12 @@ videoForm.addEventListener("submit", async event => {
             document.getElementById("videoDuration").value
         ) || 0;
 
-        const cover = document.getElementById("videoCover").value.trim();
-
         const videoUrl = document.getElementById("videoUrl").value.trim();
 
+        const coverFile = videoCover?.files?.[0] || null;
+
         if (!title || !categoryId || !videoUrl) {
+
             throw new Error("يرجى ملء الحقول المطلوبة.");
         }
 
@@ -511,6 +797,7 @@ videoForm.addEventListener("submit", async event => {
             parsedUrl.protocol !== "https:" &&
             parsedUrl.protocol !== "http:"
         ) {
+
             throw new Error("رابط الفيديو غير صالح.");
         }
 
@@ -521,6 +808,7 @@ videoForm.addEventListener("submit", async event => {
             document.getElementById("scheduledAt").value;
 
         if (publishMode === "scheduled" && !scheduledAt) {
+
             throw new Error("يرجى تحديد موعد النشر.");
         }
 
@@ -528,21 +816,44 @@ videoForm.addEventListener("submit", async event => {
             publishMode === "scheduled" &&
             new Date(scheduledAt) <= new Date()
         ) {
+
             throw new Error("يجب اختيار موعد في المستقبل.");
         }
+
+        /* التحقق من الصورة المختارة */
+
+        const coverValidationError = validateCoverFile(coverFile);
+
+        if (coverValidationError) {
+            throw new Error(coverValidationError);
+        }
+
+        /* الاحتفاظ بالصورة القديمة ما لم يتم اختيار صورة جديدة */
+
+        let coverUrl = editingVideo?.cover_image_url || null;
+
+        /* رفع الصورة الجديدة عند اختيارها */
+
+        if (coverFile) {
+
+            saveVideoButton.textContent = "جارٍ رفع صورة الغلاف...";
+
+            coverUrl = await uploadCoverImage(coverFile);
+        }
+
+        saveVideoButton.textContent = "جارٍ حفظ الفيديو...";
 
         const videoData = {
 
             title,
             description,
 
-            // الكلمات المفتاحية
             keywords,
 
             category_id: categoryId,
             duration_seconds: duration,
 
-            cover_image_url: cover || null,
+            cover_image_url: coverUrl,
             external_video_url: videoUrl,
 
             status: publishMode === "scheduled"
@@ -558,7 +869,8 @@ videoForm.addEventListener("submit", async event => {
                 : null
         };
 
-        // الحفاظ على حالة الفيديو الأصلية عند تعديل بياناته
+        /* الحفاظ على حالة الفيديو الأصلية عند تعديل بياناته */
+
         if (id && editingVideo) {
 
             videoData.status = editingVideo.status;
@@ -581,7 +893,10 @@ videoForm.addEventListener("submit", async event => {
 
             if (error) throw error;
 
-            showMessage("تم تعديل بيانات الفيديو والكلمات المفتاحية.", true);
+            showMessage(
+                "تم تعديل بيانات الفيديو وحفظ صورة الغلاف والكلمات المفتاحية.",
+                true
+            );
 
         } else {
 
@@ -593,7 +908,10 @@ videoForm.addEventListener("submit", async event => {
 
             if (error) throw error;
 
-            showMessage("تمت إضافة الفيديو والكلمات المفتاحية بنجاح.", true);
+            showMessage(
+                "تمت إضافة الفيديو وصورة الغلاف بنجاح.",
+                true
+            );
         }
 
         resetVideoForm();
@@ -611,12 +929,17 @@ videoForm.addEventListener("submit", async event => {
     } finally {
 
         saveVideoButton.disabled = false;
+
+        saveVideoButton.textContent = editingVideo
+            ? "حفظ التعديلات"
+            : "حفظ الفيديو";
     }
 });
 
-// =================================
-// إعادة ضبط النموذج
-// =================================
+
+/* =================================
+   إعادة ضبط النموذج
+================================= */
 
 function resetVideoForm() {
 
@@ -632,6 +955,12 @@ function resetVideoForm() {
 
     cancelEditButton.style.display = "none";
 
+    if (videoCover) {
+        videoCover.value = "";
+    }
+
+    hideCoverPreview();
+
     const scheduleGroup =
         document.getElementById("scheduleDateGroup");
 
@@ -640,19 +969,22 @@ function resetVideoForm() {
     }
 }
 
-// =================================
-// إلغاء التعديل
-// =================================
+
+/* =================================
+   إلغاء التعديل
+================================= */
 
 cancelEditButton.addEventListener("click", () => {
 
     resetVideoForm();
+
     hideMessage();
 });
 
-// =================================
-// تحويل التاريخ إلى صيغة datetime-local
-// =================================
+
+/* =================================
+   تحويل التاريخ إلى صيغة datetime-local
+================================= */
 
 function toLocalDateTime(value) {
 
@@ -669,9 +1001,10 @@ function toLocalDateTime(value) {
         .slice(0, 16);
 }
 
-// =================================
-// تعديل بيانات فيديو
-// =================================
+
+/* =================================
+   تعديل بيانات فيديو
+================================= */
 
 function editVideo(video) {
 
@@ -691,18 +1024,35 @@ function editVideo(video) {
     document.getElementById("videoDuration").value =
         video.duration_seconds || "";
 
-    document.getElementById("videoCover").value =
-        video.cover_image_url || "";
+    /* حقل الصورة أصبح اختيار ملف وليس رابطاً */
+
+    if (videoCover) {
+        videoCover.value = "";
+    }
+
+    releaseCoverPreviewUrl();
+
+    if (video.cover_image_url) {
+
+        showCoverPreview(
+            video.cover_image_url,
+            "الصورة الحالية للفيديو"
+        );
+
+    } else {
+
+        hideCoverPreview();
+    }
 
     document.getElementById("videoUrl").value =
         video.external_video_url || "";
 
-    // استرجاع الكلمات المفتاحية
     if (videoKeywords) {
         videoKeywords.value = video.keywords || "";
     }
 
-    // استرجاع إعدادات الجدولة
+    /* استرجاع إعدادات الجدولة */
+
     const publishMode = document.getElementById("publishMode");
 
     const scheduledAt = document.getElementById("scheduledAt");
@@ -737,15 +1087,18 @@ function editVideo(video) {
 
     cancelEditButton.style.display = "inline-block";
 
+    hideMessage();
+
     window.scrollTo({
         top: 0,
         behavior: "smooth"
     });
 }
 
-// =================================
-// تحميل فيديوهات الإدارة
-// =================================
+
+/* =================================
+   تحميل فيديوهات الإدارة
+================================= */
 
 async function loadAdminVideos() {
 
@@ -756,9 +1109,9 @@ async function loadAdminVideos() {
 
         let allVideos = [];
         let offset = 0;
+
         const pageSize = 1000;
 
-        // تحميل جميع الفيديوهات على دفعات
         while (true) {
 
             const { data, error } = await supabaseClient
@@ -806,9 +1159,10 @@ async function loadAdminVideos() {
     }
 }
 
-// =================================
-// عرض الفيديوهات
-// =================================
+
+/* =================================
+   عرض الفيديوهات
+================================= */
 
 function renderAdminVideos(videos) {
 
@@ -835,18 +1189,25 @@ function renderAdminVideos(videos) {
 
         const image = document.createElement("img");
 
-        image.src = video.cover_image_url || "";
-        image.alt = video.title || "فيديو";
+        if (video.cover_image_url) {
 
-        image.addEventListener("error", () => {
+            image.src = video.cover_image_url;
+            image.alt = video.title || "فيديو";
+
+            image.addEventListener("error", () => {
+                image.style.display = "none";
+            });
+
+        } else {
+
             image.style.display = "none";
-        });
+        }
 
         const content = document.createElement("div");
 
         const title = document.createElement("h3");
 
-        title.textContent = video.title;
+        title.textContent = video.title || "بدون عنوان";
 
         const description = document.createElement("p");
 
@@ -857,7 +1218,6 @@ function renderAdminVideos(videos) {
 
         status.textContent = "الحالة: " + video.status;
 
-        // عرض الكلمات المفتاحية
         const keywordsElement = document.createElement("p");
 
         keywordsElement.textContent = video.keywords
@@ -865,6 +1225,12 @@ function renderAdminVideos(videos) {
             : "لا توجد كلمات مفتاحية.";
 
         keywordsElement.style.color = "#ff9800";
+
+        const actions = document.createElement("div");
+
+        actions.className = "admin-actions";
+
+        /* معلومات الجدولة */
 
         if (
             video.status === "scheduled" &&
@@ -879,12 +1245,10 @@ function renderAdminVideos(videos) {
 
             scheduleInfo.style.color = "#ff9800";
 
-            card.appendChild(scheduleInfo);
+            content.appendChild(scheduleInfo);
         }
 
-        const actions = document.createElement("div");
-
-        actions.className = "admin-actions";
+        /* زر التعديل */
 
         const editButton = document.createElement("button");
 
@@ -896,6 +1260,8 @@ function renderAdminVideos(videos) {
         });
 
         actions.appendChild(editButton);
+
+        /* أزرار القبول والرفض */
 
         if (video.status === "pending") {
 
@@ -920,6 +1286,8 @@ function renderAdminVideos(videos) {
             actions.append(approveButton, rejectButton);
         }
 
+        /* زر الحذف */
+
         const deleteButton = document.createElement("button");
 
         deleteButton.className = "delete-button";
@@ -931,7 +1299,8 @@ function renderAdminVideos(videos) {
 
         actions.appendChild(deleteButton);
 
-        // زر تغيير الحالة للفيديوهات الأخرى
+        /* تغيير حالة الفيديوهات المنشورة والمرفوضة */
+
         if (
             video.status === "approved" ||
             video.status === "rejected"
@@ -970,9 +1339,13 @@ function renderAdminVideos(videos) {
                     if (error) throw error;
 
                     await loadAdminVideos();
+
                     await loadAdminStats();
 
-                    showMessage("تم تغيير حالة الفيديو بنجاح.", true);
+                    showMessage(
+                        "تم تغيير حالة الفيديو بنجاح.",
+                        true
+                    );
 
                 } catch (error) {
 
@@ -998,13 +1371,13 @@ function renderAdminVideos(videos) {
         card.append(image, content);
 
         adminVideos.appendChild(card);
-
     });
 }
 
-// =================================
-// قبول أو رفض فيديو
-// =================================
+
+/* =================================
+   قبول أو رفض فيديو
+================================= */
 
 async function changeVideoStatus(video, newStatus) {
 
@@ -1041,6 +1414,7 @@ async function changeVideoStatus(video, newStatus) {
         }
 
         await loadAdminVideos();
+
         await loadAdminStats();
 
         showMessage(
@@ -1058,9 +1432,10 @@ async function changeVideoStatus(video, newStatus) {
     }
 }
 
-// =================================
-// حذف فيديو
-// =================================
+
+/* =================================
+   حذف فيديو
+================================= */
 
 async function deleteVideo(video) {
 
@@ -1078,6 +1453,7 @@ async function deleteVideo(video) {
         if (error) throw error;
 
         await loadAdminVideos();
+
         await loadAdminStats();
 
         showMessage("تم حذف الفيديو.", true);
@@ -1090,9 +1466,10 @@ async function deleteVideo(video) {
     }
 }
 
-// =================================
-// أزرار تصفية الفيديوهات
-// =================================
+
+/* =================================
+   أزرار تصفية الفيديوهات
+================================= */
 
 document.querySelectorAll(".admin-tabs button").forEach(button => {
 
@@ -1109,9 +1486,10 @@ document.querySelectorAll(".admin-tabs button").forEach(button => {
     });
 });
 
-// =================================
-// تشغيل لوحة الإدارة
-// =================================
+
+/* =================================
+   تشغيل لوحة الإدارة
+================================= */
 
 async function initializeAdmin() {
 
@@ -1122,7 +1500,9 @@ async function initializeAdmin() {
     try {
 
         await loadAdminCategories();
+
         await loadAdminVideos();
+
         await loadAdminStats();
 
     } catch (error) {
@@ -1134,5 +1514,10 @@ async function initializeAdmin() {
         );
     }
 }
+
+
+/* =================================
+   INITIALIZE
+================================= */
 
 initializeAdmin();
